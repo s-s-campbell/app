@@ -1,0 +1,13 @@
+# Development dependencies for testing
+# Install with: pip install -r requirements-dev.txt
+
+pytest==7.4.0                    # Main testing framework
+pytest-flask==1.3.0              # Flask-specific testing utilities (compatible with Flask 3.x)
+pytest-mock==3.11.1              # Enhanced mocking capabilities
+responses==0.23.1                # Mock HTTP requests library
+google-cloud-testutils==1.3.0    # Google Cloud testing utilities
+pytest-cov==4.1.0                # Coverage reporting for tests
+
+# Optional: For more advanced testing
+pytest-xdist==3.3.1              # Parallel test execution
+pytest-html==3.2.0               # HTML test reports 

@@ -1,0 +1,112 @@
+import os
+import json
+import time
+import datetime
+import requests
+from google.cloud import storage
+from flask import Flask, request
+
+app = Flask(__name__)
+
+# Use environment variables for configuration (more secure and flexible)
+BUCKET_NAME = os.environ.get("BUCKET_NAME")
+PROJECT_ID = os.environ.get("PROJECT_ID")  # Optional: for explicit project specification
+
+# Validate required environment variables
+if not BUCKET_NAME:
+    raise ValueError("BUCKET_NAME environment variable is required")
+
+
+def load_sources_from_gcs(bucket_name, path="config/sources.json"):  # Define a function to load the sources from the gcs bucket
+    try:
+        client = storage.Client()  # Create a client
+        bucket = client.bucket(bucket_name)  # Get the bucket from the client
+        blob = bucket.blob(path)  # Create a blob for the path
+        
+        if not blob.exists():
+            raise FileNotFoundError(f"Config file {path} not found in bucket {bucket_name}")
+            
+        data = blob.download_as_text()  # Download the data from the blob
+        return json.loads(data)  # Return the data as a list of dictionaries
+    except Exception as e:
+        print(f"Error loading sources: {e}")
+        return []  # or raise depending on your needs
+
+
+def upload_result_to_gcs(source_name, data):  # Define a function to upload the result to the gcs bucket
+    try:
+        timestamp = datetime.datetime.now(datetime.UTC).isoformat()  # Get the current timestamp in ISO format
+        filename = f"data/{source_name}/{timestamp}.json"    # Updated to use data folder for HTML data
+
+        storage_client = storage.Client()  # Create a client
+        bucket = storage_client.bucket(BUCKET_NAME)  # Get the bucket from the client
+        blob = bucket.blob(filename)  # Create a blob for the filename
+
+        blob.upload_from_string(json.dumps(data), content_type="application/json")  # Upload the data to the blob
+        print(f"Uploaded result for {source_name} to {filename}")  # Print a message to the console
+    except Exception as e:
+        print(f"Error uploading result for {source_name}: {e}")  # Print error message if upload fails
+
+
+def fetch_html_with_retries(url, max_retries=3, backoff=2):  # Define a function to fetch the html from the url with retries    
+    for attempt in range(1, max_retries + 1):  # Loop through the attempts
+        try:
+            response = requests.get(url, timeout=10)  # Get the response from the url
+            response.raise_for_status()  # Raise an exception for bad status codes
+            return {
+                "status": "success",
+                "html": response.text,  # Get the text from the response
+                "http_status": response.status_code,  # Get the status code from the response
+                "error_message": None  # Set the error message to None
+            }
+        except requests.exceptions.HTTPError as e:
+            return {
+                "status": "error",
+                "html": None,  # Set the html to None
+                "http_status": e.response.status_code,  # Get the status code from the response
+                "error_message": str(e)  # Set the error message to the exception
+            }
+        except requests.exceptions.RequestException as e:
+            if attempt < max_retries:
+                time.sleep(backoff ** attempt)  # Exponential backoff
+            else:
+                return {
+                    "status": "error",
+                    "html": None,
+                    "http_status": None,
+                    "error_message": f"Request failed after {max_retries} attempts: {str(e)}"
+                }
+
+
+@app.route("/", methods=["GET"])  # Define the route for the scrape_sites function
+def scrape_sites():
+    results = []
+
+    sources = load_sources_from_gcs(BUCKET_NAME)  # Load the sources from the gcs bucket
+
+    for source in sources:  # Loop through the sources
+        result = fetch_html_with_retries(source["url"])  # Fetch the html from the url
+        payload = {
+            "source": source["name"],
+            "url": source["url"],
+            "scraped_at": datetime.datetime.now(datetime.UTC).isoformat(),
+            "status": result["status"],
+            "html": result["html"],
+            "http_status": result["http_status"],
+            "error_message": result["error_message"]
+        }
+
+        upload_result_to_gcs(source["name"], payload)  # Upload the result to the gcs bucket
+        results.append({source["name"]: payload["status"]})  # Append the result to the results list
+
+    return {"results": results}, 200  # Return the results and a status code of 200
+
+
+@app.route("/health", methods=["GET"])  # Define the route for the health_check function for cloud run
+def health_check():
+    return {"status": "healthy", "timestamp": datetime.datetime.now(datetime.UTC).isoformat()}, 200  # Return a healthy status and the current timestamp
+
+
+if __name__ == "__main__":  
+    port = int(os.environ.get("PORT", 8080))  # Get the port from the environment variable (GCP)
+    app.run(host="0.0.0.0", port=port)  # Run the app on the port
