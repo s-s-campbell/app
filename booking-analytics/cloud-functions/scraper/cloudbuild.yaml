@@ -6,7 +6,7 @@
 # SECURITY NOTE: These are not sensitive values but should be configurable per environment
 substitutions:
   _PROJECT_ID: 'sports-booking-465210'           # Can be overridden in trigger settings
-  _REGION: 'us-central1'                   # Cloud Run region
+  _REGION: 'australia-southeast1'                   # Cloud Run region
   _SERVICE_NAME: 'web-scraper'             # Cloud Run service name
   _BUCKET_NAME: 'sports-booking-webscraper'      # Can be overridden for different environments
   _SERVICE_ACCOUNT: 'scraper-service@${_PROJECT_ID}.iam.gserviceaccount.com'
