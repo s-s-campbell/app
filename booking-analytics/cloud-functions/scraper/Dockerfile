@@ -3,8 +3,8 @@
 FROM python:3.11-slim
 
 # Set environment variables for Python optimization
-ENV PYTHONDONTWRITEBYTECODE=1  # Prevents Python from writing pyc files to disc
-ENV PYTHONUNBUFFERED=1         # Prevents Python from buffering stdout and stderr
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
 # Set work directory inside the container
 # This is where our application code will live
@@ -15,7 +15,7 @@ WORKDIR /app
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         build-essential \
-    && rm -rf /var/lib/apt/lists/*  # Clean up to reduce image size
+    && rm -rf /var/lib/apt/lists/* 
 
 # Copy and install Python dependencies first
 # This is done before copying code to leverage Docker layer caching
