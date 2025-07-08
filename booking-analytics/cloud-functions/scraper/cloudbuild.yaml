@@ -12,11 +12,11 @@ substitutions:
   _SERVICE_ACCOUNT: 'scraper-service@${_PROJECT_ID}.iam.gserviceaccount.com'
   _IMAGE_NAME: 'web-scraper'
   _REGISTRY: 'gcr.io'                      # Can also use Artifact Registry
-  _MEMORY: '1Gi'                          # Memory allocation for Cloud Run
+  _MEMORY: '512Mi'                        # Memory allocation for Cloud Run
   _CPU: '1'                               # CPU allocation
-  _CONCURRENCY: '80'                      # Max concurrent requests per instance
+  _CONCURRENCY: '1'                      # Max concurrent requests per instance
   _TIMEOUT: '900'                         # Request timeout in seconds (15 minutes)
-  _MAX_INSTANCES: '10'                    # Maximum number of instances
+  _MAX_INSTANCES: '1'                    # Maximum number of instances
 
 steps:
   # Step 1: Run tests to ensure code quality before deployment
