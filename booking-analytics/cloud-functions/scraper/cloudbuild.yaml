@@ -15,8 +15,8 @@ substitutions:
   _MEMORY: '512Mi'                        # Memory allocation for Cloud Run
   _CPU: '1'                               # CPU allocation
   _CONCURRENCY: '1'                      # Max concurrent requests per instance
-  _TIMEOUT: '900'                         # Request timeout in seconds (15 minutes)
-  _MAX_INSTANCES: '1'                    # Maximum number of instances
+  _TIMEOUT: '300'                         # Request timeout in seconds (5 minutes)
+  _MAX_INSTANCES: '80'                    # Maximum number of instances
 
 steps:
   # Step 1: Run tests to ensure code quality before deployment
