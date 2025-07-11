@@ -2,6 +2,7 @@ import os
 import json
 import time
 import datetime
+import base64
 import requests
 from google.cloud import storage
 from flask import Flask, request
@@ -76,16 +77,15 @@ def fetch_html_with_retries(url, max_retries=3, backoff=2):  # Define a function
                     "http_status": None,
                     "error_message": f"Request failed after {max_retries} attempts: {str(e)}"
                 }
-
-
-@app.route("/", methods=["GET"])  # Define the route for the scrape_sites function
+            
+            
 def scrape_sites():
     results = []
 
-    sources = load_sources_from_gcs(BUCKET_NAME)  # Load the sources from the gcs bucket
+    sources = load_sources_from_gcs(BUCKET_NAME)
 
-    for source in sources:  # Loop through the sources
-        result = fetch_html_with_retries(source["url"])  # Fetch the html from the url
+    for source in sources:
+        result = fetch_html_with_retries(source["url"])
         payload = {
             "source": source["name"],
             "url": source["url"],
@@ -96,10 +96,49 @@ def scrape_sites():
             "error_message": result["error_message"]
         }
 
-        upload_result_to_gcs(source["name"], payload)  # Upload the result to the gcs bucket
-        results.append({source["name"]: payload["status"]})  # Append the result to the results list
+        upload_result_to_gcs(source["name"], payload)
+        results.append({source["name"]: payload["status"]})
 
-    return {"results": results}, 200  # Return the results and a status code of 200
+    print("Scraping complete.")
+
+
+@app.route("/", methods=["POST"])
+def receive_pubsub():
+    try:
+        envelope = request.get_json()
+
+        if not envelope or "message" not in envelope:
+            return "Invalid Pub/Sub message format", 400
+
+        pubsub_message = envelope["message"]
+
+        # Parse payload if present
+        payload = {}
+        if "data" in pubsub_message:
+            try:
+                payload_bytes = base64.b64decode(pubsub_message["data"])
+                payload = json.loads(payload_bytes.decode("utf-8"))
+            except (ValueError, json.JSONDecodeError) as e:
+                print(f"Error decoding Pub/Sub data: {e}")
+                return "Invalid Pub/Sub data format", 400
+
+        attributes = pubsub_message.get("attributes", {})
+        trigger_type = attributes.get("trigger", "unspecified")
+
+        print(f"Received trigger: {trigger_type}")
+        print(f"Payload: {payload}")
+
+        # Only run scraper for daily-scrape trigger
+        if trigger_type == "daily-scrape":
+            scrape_sites()
+            return "Scraping completed", 200
+        else:
+            print(f"Ignoring trigger type: {trigger_type}")
+            return "Trigger ignored", 200
+
+    except Exception as e:
+        print(f"Error processing Pub/Sub message: {e}")
+        return "Internal server error", 500
 
 
 @app.route("/health", methods=["GET"])  # Define the route for the health_check function for cloud run

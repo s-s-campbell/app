@@ -37,7 +37,7 @@ def mock_bucket_name():
     Returns:
         str: Test bucket name
     """
-    return "test-bucket"
+    return "test-bucket-for-testing"
 
 
 @pytest.fixture
@@ -90,6 +90,6 @@ def mock_environment():
         dict: Dictionary of environment variables for testing
     """
     return {
-        'BUCKET_NAME': 'test-bucket',
+        'BUCKET_NAME': 'test-bucket-for-testing',
         'PORT': '8080'
     } 

@@ -10,6 +10,10 @@ set PIP=pip
 set PYTEST=pytest
 set DOCKER=docker
 
+REM Test environment variables
+set TEST_BUCKET_NAME=test-bucket-for-testing
+set TEST_PROJECT_ID=test-project-for-testing
+
 REM Colors (if supported)
 set GREEN=[32m
 set YELLOW=[33m
@@ -74,6 +78,10 @@ echo   make.bat test             # Run all tests
 echo   make.bat test-coverage    # Run tests with coverage
 echo   set TEST=TestLoadSourcesFromGCS ^& make.bat test-specific
 echo.
+echo Note: Tests use test environment variables for safety
+echo   BUCKET_NAME=%TEST_BUCKET_NAME%
+echo   PROJECT_ID=%TEST_PROJECT_ID%
+echo.
 goto end
 
 :install
@@ -101,6 +109,8 @@ goto end
 echo Setting up project...
 call :install_dev
 echo Verifying setup...
+set BUCKET_NAME=%TEST_BUCKET_NAME%
+set PROJECT_ID=%TEST_PROJECT_ID%
 %PYTEST% --version
 if errorlevel 1 (
     echo Error: pytest not properly installed
@@ -123,6 +133,9 @@ goto end
 echo Running all tests...
 call :check_deps
 if errorlevel 1 exit /b 1
+echo Setting test environment variables...
+set BUCKET_NAME=%TEST_BUCKET_NAME%
+set PROJECT_ID=%TEST_PROJECT_ID%
 %PYTEST% tests/
 goto end
 
@@ -130,6 +143,9 @@ goto end
 echo Running tests with verbose output...
 call :check_deps
 if errorlevel 1 exit /b 1
+echo Setting test environment variables...
+set BUCKET_NAME=%TEST_BUCKET_NAME%
+set PROJECT_ID=%TEST_PROJECT_ID%
 %PYTEST% -v tests/
 goto end
 
@@ -137,6 +153,9 @@ goto end
 echo Running tests with coverage...
 call :check_deps
 if errorlevel 1 exit /b 1
+echo Setting test environment variables...
+set BUCKET_NAME=%TEST_BUCKET_NAME%
+set PROJECT_ID=%TEST_PROJECT_ID%
 %PYTEST% --cov=main --cov-report=term-missing tests/
 goto end
 
@@ -144,6 +163,9 @@ goto end
 echo Generating HTML coverage report...
 call :check_deps
 if errorlevel 1 exit /b 1
+echo Setting test environment variables...
+set BUCKET_NAME=%TEST_BUCKET_NAME%
+set PROJECT_ID=%TEST_PROJECT_ID%
 %PYTEST% --cov=main --cov-report=html tests/
 echo Coverage report generated in htmlcov/index.html
 goto end
@@ -158,6 +180,9 @@ if "%TEST%"=="" (
 echo Running specific test: %TEST%
 call :check_deps
 if errorlevel 1 exit /b 1
+echo Setting test environment variables...
+set BUCKET_NAME=%TEST_BUCKET_NAME%
+set PROJECT_ID=%TEST_PROJECT_ID%
 %PYTEST% -v tests/test_main.py::%TEST%
 goto end
 
@@ -165,6 +190,9 @@ goto end
 echo Running integration tests...
 call :check_deps
 if errorlevel 1 exit /b 1
+echo Setting test environment variables...
+set BUCKET_NAME=%TEST_BUCKET_NAME%
+set PROJECT_ID=%TEST_PROJECT_ID%
 %PYTEST% -v tests/test_main.py::TestIntegration
 goto end
 
@@ -172,6 +200,9 @@ goto end
 echo Running unit tests...
 call :check_deps
 if errorlevel 1 exit /b 1
+echo Setting test environment variables...
+set BUCKET_NAME=%TEST_BUCKET_NAME%
+set PROJECT_ID=%TEST_PROJECT_ID%
 %PYTEST% -v tests/test_main.py -k "not TestIntegration"
 goto end
 
@@ -179,11 +210,16 @@ goto end
 echo Running tests in parallel...
 call :check_deps
 if errorlevel 1 exit /b 1
+echo Setting test environment variables...
+set BUCKET_NAME=%TEST_BUCKET_NAME%
+set PROJECT_ID=%TEST_PROJECT_ID%
 %PYTEST% -n auto tests/
 goto end
 
 :lint
 echo Running basic Python syntax check...
+set BUCKET_NAME=%TEST_BUCKET_NAME%
+set PROJECT_ID=%TEST_PROJECT_ID%
 %PYTHON% -m py_compile main.py
 if errorlevel 1 (
     echo Python syntax check failed
@@ -226,7 +262,7 @@ goto end
 echo Building and testing Docker image...
 call :docker_build
 if errorlevel 1 exit /b 1
-%DOCKER% run --rm scraper-app python -c "import main; print('Docker image works')"
+%DOCKER% run --rm -e BUCKET_NAME=test-bucket scraper-app python -c "import main; print('Docker image works')"
 goto end
 
 :status
