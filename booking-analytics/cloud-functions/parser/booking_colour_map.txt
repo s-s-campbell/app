@@ -1,0 +1,4 @@
+# slot status colors
+AVAILABLE_COLOR=#ffffff
+UNAVAILABLE_COLOR=#cccccc
+BOOKED_COLOR=#6abfba

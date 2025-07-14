@@ -205,3 +205,8 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+
+# Archive directory
+# Usually locally tested ideas that won't make it into the code but good to keep on local laptop
+archive/
