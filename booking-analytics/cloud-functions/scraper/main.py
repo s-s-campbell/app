@@ -6,6 +6,7 @@ import base64
 import requests
 from google.cloud import storage
 from flask import Flask, request
+import pytz
 
 app = Flask(__name__)
 
@@ -143,7 +144,8 @@ def receive_pubsub():
 
 @app.route("/health", methods=["GET"])  # Define the route for the health_check function for cloud run
 def health_check():
-    return {"status": "healthy", "timestamp": datetime.datetime.now(datetime.UTC).isoformat()}, 200  # Return a healthy status and the current timestamp
+    sydney_tz = pytz.timezone("Australia/Sydney")
+    return {"status": "healthy", "timestamp": datetime.now(sydney_tz).isoformat()}, 200  # Return a healthy status and the current timestamp
 
 
 if __name__ == "__main__":  
