@@ -109,7 +109,7 @@ def receive_pubsub():
         envelope = request.get_json()
 
         if not envelope or "message" not in envelope:
-            return "Invalid Pub/Sub message format", 400
+            return "Invalid Pub/Sub message format - ignored", 200
 
         pubsub_message = envelope["message"]
 
