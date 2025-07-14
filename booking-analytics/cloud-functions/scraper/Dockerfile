@@ -28,5 +28,5 @@ USER appuser
 # Expose the port that the app runs on
 EXPOSE 8080
 
-# Run the application
-CMD ["python", "main.py"]
+# Run the application with Gunicorn
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "1", "--threads", "8", "--timeout", "0", "main:app"]

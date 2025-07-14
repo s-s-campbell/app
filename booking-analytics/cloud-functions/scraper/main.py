@@ -1,7 +1,7 @@
 import os
 import json
 import time
-import datetime
+from datetime import datetime
 import base64
 import requests
 from google.cloud import storage
@@ -37,7 +37,7 @@ def load_sources_from_gcs(bucket_name, path="config/sources.json"):  # Define a 
 
 def upload_result_to_gcs(source_name, data):  # Define a function to upload the result to the gcs bucket
     try:
-        timestamp = datetime.datetime.now(datetime.UTC).isoformat()  # Get the current timestamp in ISO format
+        timestamp = datetime.now(pytz.timezone("Australia/Sydney")).isoformat()  # Get the current timestamp in ISO format
         filename = f"data/{source_name}/{timestamp}.json"    # Updated to use data folder for HTML data
 
         storage_client = storage.Client()  # Create a client
@@ -90,7 +90,7 @@ def scrape_sites():
         payload = {
             "source": source["name"],
             "url": source["url"],
-            "scraped_at": datetime.datetime.now(datetime.UTC).isoformat(),
+            "scraped_at": datetime.now(pytz.timezone("Australia/Sydney")).isoformat(),
             "status": result["status"],
             "html": result["html"],
             "http_status": result["http_status"],
@@ -146,8 +146,3 @@ def receive_pubsub():
 def health_check():
     sydney_tz = pytz.timezone("Australia/Sydney")
     return {"status": "healthy", "timestamp": datetime.now(sydney_tz).isoformat()}, 200  # Return a healthy status and the current timestamp
-
-
-if __name__ == "__main__":  
-    port = int(os.environ.get("PORT", 8080))  # Get the port from the environment variable (GCP)
-    app.run(host="0.0.0.0", port=port)  # Run the app on the port

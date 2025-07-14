@@ -168,7 +168,7 @@ class TestUploadResultToGCS:
         Production Impact: Without this, scraping is pointless (no data saved).
         """
         # Setup time mock for consistent timestamps
-        mock_datetime.datetime.now.return_value.isoformat.return_value = "2024-01-01T00:00:00"
+        mock_datetime.now.return_value.isoformat.return_value = "2024-01-01T00:00:00"
         
         # Setup GCS mocks
         mock_client = Mock()
@@ -209,7 +209,7 @@ class TestUploadResultToGCS:
         Production Impact: Scraping continues even if some uploads fail.
         """
         # Setup time mock
-        mock_datetime.datetime.now.return_value.isoformat.return_value = "2024-01-01T00:00:00"
+        mock_datetime.now.return_value.isoformat.return_value = "2024-01-01T00:00:00"
         
         # Setup GCS mock to fail
         mock_storage_client.side_effect = Exception("GCS upload failed")
@@ -460,7 +460,7 @@ class TestIntegration:
         }
         
         with patch('main.datetime') as mock_datetime:
-            mock_datetime.datetime.now.return_value.isoformat.return_value = "2024-01-01T00:00:00"
+            mock_datetime.now.return_value.isoformat.return_value = "2024-01-01T00:00:00"
             upload_result_to_gcs("test-site", test_data)
         
         # Verify data is stored in correct folder structure
