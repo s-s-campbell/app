@@ -120,8 +120,9 @@ def receive_pubsub():
                 payload_bytes = base64.b64decode(pubsub_message["data"])
                 payload = json.loads(payload_bytes.decode("utf-8"))
             except (ValueError, json.JSONDecodeError) as e:
-                print(f"Error decoding Pub/Sub data: {e}")
-                return "Invalid Pub/Sub data format", 400
+                print(f"ERROR decoding Pub/Sub data: {e}")
+                # Return 200 to acknowledge message and stop retries
+                return "Invalid Pub/Sub data format - ignored", 200
 
         attributes = pubsub_message.get("attributes", {})
         trigger_type = attributes.get("trigger", "unspecified")
@@ -139,7 +140,8 @@ def receive_pubsub():
 
     except Exception as e:
         print(f"Error processing Pub/Sub message: {e}")
-        return "Internal server error", 500
+        # Return 200 OK to acknowledge and avoid retries
+        return "Internal server error - ignored", 200
 
 
 @app.route("/health", methods=["GET"])  # Define the route for the health_check function for cloud run
