@@ -2,6 +2,9 @@
 
 import json
 from bs4 import BeautifulSoup
+from datetime import datetime, timedelta
+import pytz
+import re
 
 # Constants for table positioning (0-based indexing)
 TARGET_OUTER_TABLE_INDEX = 0  # Outer table 1 (0-based)
@@ -29,7 +32,7 @@ def load_and_validate_json_data():
         return None
     
     print("Successfully extracted HTML data section from JSON file")
-    return data['html']
+    return data['html'], data['source'], data['scraped_at'], data['url']
 
 def extract_target_table(html_data):
     """Extract the specific target table using constants."""
@@ -45,13 +48,6 @@ def extract_target_table(html_data):
         if len(nested_tables) > TARGET_NESTED_TABLE_INDEX:
             target_nested_table = nested_tables[TARGET_NESTED_TABLE_INDEX]
             table_rows = target_nested_table.find_all('tr')
-            
-            print(f"\n{'='*60}")
-            print(f"PROCESSING TARGET TABLE:")
-            print(f"Outer table index: {TARGET_OUTER_TABLE_INDEX + 1}")
-            print(f"Nested table index: {TARGET_NESTED_TABLE_INDEX + 1}")
-            print(f"Rows in target nested table: {len(table_rows)}")
-            print(f"{'='*60}")
             
             return table_rows
         else:
@@ -118,25 +114,116 @@ def filter_hourly_timeslots(time_bgcolor_map):
         if ":00" in time_slot:
             hourly_map[time_slot] = status_list
     
-    print(f"\nFILTERED HOURLY TIMESLOTS:")
-    print(f"{'-'*50}")
-    for time_slot, status_list in hourly_map.items():
-        print(f'"{time_slot}": {status_list}')
-    print(f"{'-'*50}")
-    print(f"Filtered from {len(time_bgcolor_map)} to {len(hourly_map)} time slots")
-    
     return hourly_map
+
+def create_structured_data(hourly_timeslots, headers, data_source, scraped_at, source_url):
+    """Create structured table data from the processed booking information."""
+    # Extract venue name and suburb from source
+    venue_name, suburb = data_source.split(':', 1)
+    
+    # Define AEST timezone
+    aest_tz = pytz.timezone("Australia/Sydney")
+    
+    # Parse date from scraped_at timestamp and convert to AEST
+    scraped_datetime = datetime.fromisoformat(scraped_at.replace('Z', '+00:00'))
+    scraped_aest = scraped_datetime.astimezone(aest_tz)
+    date_iso = scraped_aest.date().isoformat()
+    
+    # Current timestamp for parsed_at in AEST
+    parsed_at = datetime.now(aest_tz).isoformat()
+    
+    # Extract surface information from headers (skip first header which is "Time")
+    surface_info = []
+    for header in headers[1:]:  # Skip "Time" header
+        # Extract surface type and number from headers like "Court 1", "Court 2"
+        match = re.match(r'^(\w+)\s+(\d+)$', header.strip())
+        if match:
+            surface_type = match.group(1)
+            surface_number = match.group(2)
+            surface_info.append((surface_type, surface_number))
+        else:
+            # Fallback if header doesn't match expected pattern
+            surface_info.append((header.strip(), ""))
+    
+    # Create structured rows
+    structured_data = []
+    
+    for time_slot, status_list in hourly_timeslots.items():
+        # Parse start time in AEST
+        start_time = parse_time_slot(time_slot, date_iso, aest_tz)
+        # Calculate end time (1 hour later) in AEST
+        end_time = (datetime.fromisoformat(start_time) + timedelta(hours=1)).isoformat()
+        
+        # Create row for each court/surface
+        for i, booking_status in enumerate(status_list):
+            if i < len(surface_info):
+                surface_type, surface_number = surface_info[i]
+                
+                row = {
+                    'venue_name': venue_name,
+                    'suburb': suburb,
+                    'date': date_iso,
+                    'start_time': start_time,
+                    'end_time': end_time,
+                    'surface_type': surface_type,
+                    'surface_number': surface_number,
+                    'booking_status': booking_status,
+                    'source_url': source_url,
+                    'scraped_at': scraped_aest.isoformat(),
+                    'parsed_at': parsed_at
+                }
+                structured_data.append(row)
+    
+    return structured_data
+
+def parse_time_slot(time_slot, date_iso, timezone):
+    """Parse time slot string like '7:00am' into datetime string in specified timezone."""
+    # Remove any extra spaces and convert to standard format
+    time_slot = time_slot.strip()
+    
+    # Parse time using datetime
+    time_obj = datetime.strptime(time_slot, '%I:%M%p')
+    
+    # Combine with date and timezone
+    datetime_str = f"{date_iso}T{time_obj.strftime('%H:%M:%S')}"
+    naive_datetime = datetime.fromisoformat(datetime_str)
+    datetime_with_tz = timezone.localize(naive_datetime)
+    
+    return datetime_with_tz.isoformat()
+
+def print_structured_data(structured_data):
+    """Print structured data as a formatted table."""
+    if not structured_data:
+        print("No structured data to display")
+        return
+    
+    # Print header
+    print(f"\nSTRUCTURED BOOKING DATA:")
+    print(f"{'='*196}")
+    
+    # Print column headers
+    headers = ['venue_name', 'suburb', 'date', 'start_time', 'end_time', 
+               'surface_type', 'surface_number', 'booking_status', 'source_url', 'scraped_at', 'parsed_at']
+    
+    print(" | ".join(f"{header:15}" for header in headers))
+    print("-" * 196)
+    
+    # Print data rows
+    for row in structured_data:
+        values = [str(row.get(header, ''))[:15] for header in headers]
+        print(" | ".join(f"{value:15}" for value in values))
+    
+    print(f"{'='*196}")
+    print(f"Total rows: {len(structured_data)}")
 
 def main():
     # Step 1: Load and validate JSON data
-    html_data = load_and_validate_json_data()
-    if html_data is None:
-        return
+    html_data, data_source, scraped_at, source_url = load_and_validate_json_data()
+    assert html_data, f"HTML data not found at {data_source}"
     
     # Step 2: Extract the target table
     table_rows = extract_target_table(html_data)
-    if table_rows is None:
-        return
+    assert table_rows is not None, f"Booking table not found at {data_source}"  
     
     # Step 3: Process the table rows
     if len(table_rows) > 0:
@@ -145,6 +232,12 @@ def main():
         
         # Step 4: Filter to only hourly time slots
         hourly_timeslots = filter_hourly_timeslots(time_bgcolor_map)
+        
+        # Step 5: Create structured data and print to stdout
+        structured_data = create_structured_data(hourly_timeslots, headers, data_source, scraped_at, source_url)
+        print_structured_data(structured_data)
+    else:
+        raise ValueError(f"Booking table is empty at {data_source}")
 
 if __name__ == "__main__":
     main()
